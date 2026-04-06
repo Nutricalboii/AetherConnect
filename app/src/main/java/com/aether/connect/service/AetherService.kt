@@ -70,6 +70,7 @@ class AetherService : Service() {
         mdnsManager = MDNSManager(this).also { it.initialize() }
         wifiDirect = WiFiDirectManager(this).also { it.initialize() }
         webrtc = WebRTCManager(this).also { it.initialize() }
+        setupWebRTCCallbacks()
         kdeBridge = KDEBridge()
 
         // Wire up discovery callbacks
@@ -155,21 +156,56 @@ class AetherService : Service() {
         }
 
         // WiFi Direct peers
-        wifiDirect.onPeersChanged = { wifiPeers ->
-            scope.launch {
-                wifiPeers.forEach { p2pDevice ->
-                    val device = Device(
-                        id = "wfd_${p2pDevice.deviceAddress}",
-                        name = p2pDevice.deviceName ?: "WiFi Direct Device",
-                        platform = "unknown",
-                        discoverySource = "wifi_direct",
-                        lastSeen = System.currentTimeMillis(),
-                        isOnline = true
-                    )
-                    addDiscoveredDevice(device)
+        }
+    }
+
+    private fun setupWebRTCCallbacks() {
+        webrtc.onStringReceived = { peerId, json ->
+            val message = AetherProtocol.deserialize(json)
+            handleProtocolMessage(peerId, message)
+        }
+
+        webrtc.onAddTrack = { peerId, stream ->
+            Log.d(TAG, "WebRTC Track added from $peerId")
+            // This will be used by the CastingScreen to show the remote video
+        }
+    }
+
+    private fun handleProtocolMessage(peerId: String, message: AetherMessage) {
+        when (message.type) {
+            "input" -> {
+                if (message.action == "data") {
+                    val eventStr = message.payload.toString()
+                    val event = Gson().fromJson(eventStr, InputEvent::class.java)
+                    InputInjectionService.instance?.injectInput(event)
                 }
             }
+            "cast" -> {
+                when (message.action) {
+                    "request" -> {
+                        // Show notification or dialog to accept cast
+                        Log.d(TAG, "Cast request from $peerId")
+                    }
+                    "accept" -> {
+                        Log.d(TAG, "Cast accepted by $peerId")
+                    }
+                }
+            }
+            "clipboard" -> {
+                // Already handled by ClipboardService, but can be synced here if needed
+            }
         }
+    }
+
+    // Public API for V2 features
+    fun sendInputEvent(peerId: String, event: InputEvent) {
+        val message = AetherProtocol.inputEvent(deviceId, event)
+        webrtc.sendString(peerId, AetherProtocol.serialize(message))
+    }
+
+    fun requestCast(peerId: String) {
+        val message = AetherProtocol.castRequest(deviceId)
+        webrtc.sendString(peerId, AetherProtocol.serialize(message))
     }
 
     private suspend fun addDiscoveredDevice(device: Device) {

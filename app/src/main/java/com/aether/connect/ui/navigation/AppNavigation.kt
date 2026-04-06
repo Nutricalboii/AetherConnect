@@ -4,22 +4,27 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.navigation.NamedNavArgument
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.aether.connect.service.AetherService
 import com.aether.connect.ui.components.BottomNavBar
 import com.aether.connect.ui.components.BottomNavItem
 import com.aether.connect.ui.screens.*
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(service: AetherService) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: BottomNavItem.Home.route
 
-    // Hide bottom bar on pairing screen
-    val showBottomBar = currentRoute != "pairing"
+    // Hide bottom bar on specialized screens
+    val hideBottomBarRoutes = listOf("pairing", "casting", "remote_input")
+    val showBottomBar = !hideBottomBarRoutes.any { currentRoute.startsWith(it) }
 
     Scaffold(
         bottomBar = {
@@ -62,7 +67,11 @@ fun AppNavigation() {
             }
 
             composable(BottomNavItem.Devices.route) {
-                DevicesScreen()
+                DevicesScreen(
+                    onDeviceClick = { device ->
+                        // Navigate to device details or select for casting/input
+                    }
+                )
             }
 
             composable(BottomNavItem.Transfer.route) {
@@ -79,6 +88,22 @@ fun AppNavigation() {
 
             composable("pairing") {
                 PairingScreen()
+            }
+
+            composable(
+                route = "casting/{peerId}",
+                arguments = listOf(navArgument("peerId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val peerId = backStackEntry.arguments?.getString("peerId") ?: ""
+                CastingScreen(service, peerId)
+            }
+
+            composable(
+                route = "remote_input/{peerId}",
+                arguments = listOf(navArgument("peerId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val peerId = backStackEntry.arguments?.getString("peerId") ?: ""
+                RemoteInputScreen(service, peerId)
             }
         }
     }

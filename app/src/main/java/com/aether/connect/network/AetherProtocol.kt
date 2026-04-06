@@ -67,7 +67,40 @@ object AetherProtocol {
         }
         return AetherMessage("system", "info", deviceId, payload)
     }
+
+    // V2: Screen Casting
+    fun castRequest(deviceId: String): AetherMessage {
+        return AetherMessage("cast", "request", deviceId, JsonObject())
+    }
+
+    fun castResponse(deviceId: String, accepted: Boolean): AetherMessage {
+        return AetherMessage("cast", if (accepted) "accept" else "reject", deviceId, JsonObject())
+    }
+
+    // V2: Remote Input
+    fun inputEvent(deviceId: String, event: InputEvent): AetherMessage {
+        val payload = JsonObject().apply {
+            addProperty("type", event.type) // MOVE, DOWN, UP, KEY
+            addProperty("x", event.x)
+            addProperty("y", event.y)
+            addProperty("scrollX", event.scrollX)
+            addProperty("scrollY", event.scrollY)
+            addProperty("keyCode", event.keyCode)
+            addProperty("metaState", event.metaState)
+        }
+        return AetherMessage("input", "data", deviceId, payload)
+    }
 }
+
+data class InputEvent(
+    val type: String,
+    val x: Float = 0f,
+    val y: Float = 0f,
+    val scrollX: Float = 0f,
+    val scrollY: Float = 0f,
+    val keyCode: Int = 0,
+    val metaState: Int = 0
+)
 
 data class AetherMessage(
     val type: String,           // pair, file, clipboard, input, cast, system

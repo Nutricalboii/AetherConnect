@@ -39,4 +39,12 @@
 
     <!-- Share Sheet -->
     <string name="share_title">Send via AetherConnect</string>
+    <!-- V2 Features -->
+    <string name="nav_casting">Screen Cast</string>
+    <string name="nav_remote_input">Remote Control</string>
+    <string name="accessibility_description">AetherConnect uses accessibility services to inject remote input events (touches, gestures) from other devices.</string>
+    <string name="casting_service_name">AetherConnect Screen Casting</string>
+    <string name="casting_started">Screen casting started</string>
+    <string name="casting_stopped">Screen casting stopped</string>
+    <string name="input_service_name">AetherConnect Remote Input</string>
 </resources>

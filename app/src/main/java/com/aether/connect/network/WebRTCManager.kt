@@ -29,6 +29,11 @@ class WebRTCManager(private val context: Context) {
     var onDataReceived: ((String, ByteArray) -> Unit)? = null
     var onStringReceived: ((String, String) -> Unit)? = null
     var onConnectionStateChanged: ((String, PeerConnection.PeerConnectionState) -> Unit)? = null
+    var onAddTrack: ((String, MediaStream) -> Unit)? = null
+
+    private var localVideoSource: VideoSource? = null
+    private var localVideoTrack: VideoTrack? = null
+    private var surfaceTextureHelper: SurfaceTextureHelper? = null
 
     fun initialize() {
         PeerConnectionFactory.initialize(
@@ -39,9 +44,12 @@ class WebRTCManager(private val context: Context) {
 
         factory = PeerConnectionFactory.builder()
             .setOptions(PeerConnectionFactory.Options())
+            .setVideoEncoderFactory(DefaultVideoEncoderFactory(EglBase.create().eglBaseContext, true, true))
+            .setVideoDecoderFactory(DefaultVideoDecoderFactory(EglBase.create().eglBaseContext))
             .createPeerConnectionFactory()
 
-        Log.d(TAG, "WebRTC initialized")
+        surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread", EglBase.create().eglBaseContext)
+        Log.d(TAG, "WebRTC initialized with Video support")
     }
 
     fun createPeerConnection(peerId: String): PeerConnection? {
@@ -69,12 +77,18 @@ class WebRTCManager(private val context: Context) {
             override fun onSignalingChange(state: PeerConnection.SignalingState) {}
             override fun onIceConnectionChange(state: PeerConnection.IceConnectionState) {}
             override fun onIceConnectionReceivingChange(receiving: Boolean) {}
-            override fun onIceGatheringChange(state: PeerConnection.IceGatheringState) {}
             override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>) {}
-            override fun onAddStream(stream: MediaStream) {}
+            override fun onAddStream(stream: MediaStream) {
+                Log.d(TAG, "MediaStream added from $peerId")
+                onAddTrack?.invoke(peerId, stream)
+            }
             override fun onRemoveStream(stream: MediaStream) {}
             override fun onRenegotiationNeeded() {}
-            override fun onAddTrack(receiver: RtpReceiver, streams: Array<out MediaStream>) {}
+            override fun onAddTrack(receiver: RtpReceiver, streams: Array<out MediaStream>) {
+                if (streams.isNotEmpty()) {
+                    onAddTrack?.invoke(peerId, streams[0])
+                }
+            }
         }
 
         val pc = factory?.createPeerConnection(config, observer)
@@ -160,6 +174,27 @@ class WebRTCManager(private val context: Context) {
         val channel = dataChannels[peerId] ?: return
         val buffer = DataChannel.Buffer(ByteBuffer.wrap(message.toByteArray()), false)
         channel.send(buffer)
+    }
+
+    // V2: Screen Casting
+    fun startScreenCapture(peerId: String, capturer: VideoCapturer) {
+        val pc = peerConnections[peerId] ?: return
+        
+        localVideoSource = factory?.createVideoSource(true)
+        capturer.initialize(surfaceTextureHelper, context, localVideoSource?.capturerObserver)
+        capturer.startCapture(1280, 720, 30)
+
+        localVideoTrack = factory?.createVideoTrack("VIDEO_TRACK", localVideoSource)
+        pc.addTrack(localVideoTrack, listOf("STREAM_ID"))
+        
+        Log.d(TAG, "Screen capture started for $peerId")
+    }
+
+    fun stopScreenCapture() {
+        localVideoTrack?.dispose()
+        localVideoSource?.dispose()
+        localVideoTrack = null
+        localVideoSource = null
     }
 
     fun closePeer(peerId: String) {

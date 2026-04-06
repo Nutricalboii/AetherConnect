@@ -57,7 +57,9 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    AppNavigation()
+                    aetherService?.let { service ->
+                        AppNavigation(service)
+                    }
                 }
             }
         }
