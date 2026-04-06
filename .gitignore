@@ -1,0 +1,21 @@
+# Build outputs
+/app/build/
+/build/
+/.gradle/
+
+# IDE files
+/.idea/
+*.iml
+local.properties
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Keystore
+*.jks
+*.keystore
+
+# Old Node.js files (from previous approach)
+node_modules/
+package-lock.json

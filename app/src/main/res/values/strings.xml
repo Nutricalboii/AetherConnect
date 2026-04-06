@@ -1,0 +1,42 @@
+<resources>
+    <string name="app_name">AetherConnect</string>
+    <string name="app_description">Cross-device file sharing, clipboard sync, screen casting, and remote input</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_devices">Devices</string>
+    <string name="nav_transfer">Transfer</string>
+    <string name="nav_clipboard">Clipboard</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Pairing -->
+    <string name="pairing_qr_title">Scan QR Code</string>
+    <string name="pairing_nfc_title">Tap to Pair</string>
+    <string name="pairing_nfc_description">Hold your device near another AetherConnect device</string>
+
+    <!-- Transfer -->
+    <string name="transfer_select_device">Select a device to send to</string>
+    <string name="transfer_select_files">Select files to send</string>
+    <string name="transfer_sending">Sending…</string>
+    <string name="transfer_complete">Transfer complete</string>
+    <string name="transfer_failed">Transfer failed</string>
+
+    <!-- Clipboard -->
+    <string name="clipboard_syncing">Clipboard syncing</string>
+    <string name="clipboard_copied">Copied to clipboard</string>
+
+    <!-- Notifications -->
+    <string name="notification_service_title">AetherConnect</string>
+    <string name="notification_service_text">Service running</string>
+    <string name="notification_transfer_title">File Transfer</string>
+
+    <!-- Settings -->
+    <string name="settings_kde_bridge">KDE Connect Bridge</string>
+    <string name="settings_auto_start">Auto-start on boot</string>
+    <string name="settings_ble_discovery">BLE Discovery</string>
+    <string name="settings_nfc">NFC</string>
+    <string name="settings_clipboard_sync">Clipboard Sync</string>
+
+    <!-- Share Sheet -->
+    <string name="share_title">Send via AetherConnect</string>
+</resources>

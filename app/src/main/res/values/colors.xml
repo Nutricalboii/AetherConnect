@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="aether_deep">#FF0A0A0F</color>
+    <color name="aether_surface">#FF111118</color>
+    <color name="aether_cyan">#FF00D4FF</color>
+    <color name="aether_violet">#FF8B5CF6</color>
+    <color name="aether_amber">#FFF59E0B</color>
+    <color name="aether_green">#FF10B981</color>
+    <color name="aether_red">#FFEF4444</color>
+    <color name="aether_text">#FFEEEEF0</color>
+    <color name="aether_text_muted">#FF666678</color>
+</resources>
