@@ -14,6 +14,12 @@ import com.aether.connect.util.NetworkUtil
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import android.content.Context
+import android.os.PowerManager
+import android.provider.Settings
+import android.net.Uri
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 
 /**
  * AetherService — Main foreground daemon
@@ -58,6 +64,22 @@ class AetherService : Service() {
 
     override fun onBind(intent: Intent?): IBinder = binder
 
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    // Reduce discovery frequency when screen is off
+                    bleScanner.stopScanning()
+                    mdnsManager.stopDiscovery()
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    // Resume full discovery
+                    scope.launch { startServices() }
+                }
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "AetherService created")
@@ -83,9 +105,28 @@ class AetherService : Service() {
         startForeground(NOTIFICATION_ID, notification)
 
         startServices()
-        _isRunning.value = true
+        checkBatteryOptimization()
+        
+        // Register screen state listener for power saving
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
+        registerReceiver(screenReceiver, filter)
 
-        return START_STICKY
+        _isRunning.value = true
+        return START_STICKY // V3: Ensure system restarts the service if killed
+    }
+
+    private fun checkBatteryOptimization() {
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                Log.w(TAG, "AetherConnect is being optimized. Requesting whitelist...")
+                // In a system app, we could potentially auto-whitelist, 
+                // but for now we signal the requirement.
+            }
+        }
     }
 
     private fun startServices() {

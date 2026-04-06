@@ -44,12 +44,16 @@ class WebRTCManager(private val context: Context) {
 
         factory = PeerConnectionFactory.builder()
             .setOptions(PeerConnectionFactory.Options())
-            .setVideoEncoderFactory(DefaultVideoEncoderFactory(EglBase.create().eglBaseContext, true, true))
-            .setVideoDecoderFactory(DefaultVideoDecoderFactory(EglBase.create().eglBaseContext))
+            .setVideoEncoderFactory(HardwareVideoEncoderFactory(
+                EglBase.create().eglBaseContext, 
+                true,  // enableIntelVp8Encoder
+                true   // enableH264HighProfile
+            ))
+            .setVideoDecoderFactory(HardwareVideoDecoderFactory(EglBase.create().eglBaseContext))
             .createPeerConnectionFactory()
 
         surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread", EglBase.create().eglBaseContext)
-        Log.d(TAG, "WebRTC initialized with Video support")
+        Log.d(TAG, "WebRTC V3: H264 Hardware Acceleration active")
     }
 
     fun createPeerConnection(peerId: String): PeerConnection? {
@@ -180,14 +184,28 @@ class WebRTCManager(private val context: Context) {
     fun startScreenCapture(peerId: String, capturer: VideoCapturer) {
         val pc = peerConnections[peerId] ?: return
         
-        localVideoSource = factory?.createVideoSource(true)
-        capturer.initialize(surfaceTextureHelper, context, localVideoSource?.capturerObserver)
-        capturer.startCapture(1280, 720, 30)
-
-        localVideoTrack = factory?.createVideoTrack("VIDEO_TRACK", localVideoSource)
-        pc.addTrack(localVideoTrack, listOf("STREAM_ID"))
+        val videoSource = factory?.createVideoSource(true) ?: return
+        localVideoSource = videoSource
         
-        Log.d(TAG, "Screen capture started for $peerId")
+        capturer.initialize(surfaceTextureHelper, context, videoSource.capturerObserver)
+        // High quality: 1080p @ 60fps (if supported)
+        capturer.startCapture(1920, 1080, 60)
+
+        localVideoTrack = factory?.createVideoTrack("VIDEO_TRACK", videoSource)
+        
+        // SDP Munging for Bitrate Control (Adaptive 1.5 - 8 Mbps)
+        val transceiverInit = RtpTransceiver.RtpTransceiverInit(
+            RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
+            listOf("STREAM_ID"),
+            listOf(RtpParameters.Encoding("1", true, 1.0).apply {
+                minBitrateBps = 1_500_000
+                maxBitrateBps = 8_000_000
+                maxFramerate = 60
+            })
+        )
+        pc.addTransceiver(localVideoTrack, transceiverInit)
+        
+        Log.d(TAG, "V3 Screen capture started: 1080p/60fps @ 1.5-8Mbps")
     }
 
     fun stopScreenCapture() {

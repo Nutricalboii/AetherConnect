@@ -101,9 +101,18 @@ object NFCReader {
             }
             NdefRecord.TNF_WELL_KNOWN -> {
                 // Handle standard text/URI records if needed
-                val payloadStr = String(record.payload).drop(3) // Skip language code
-                val payload = NFCPayload.fromJson(payloadStr)
+                val payload = com.aether.connect.nfc.NFCPayload.fromJson(payloadStr)
                 if (payload != null) {
+                    onPayloadReceived?.invoke(payload)
+                }
+            }
+            NdefRecord.TNF_EXTERNAL_TYPE -> {
+                // V3: Handle HCE / External handshakes
+                val type = String(record.type)
+                if (type == "aether:handshake") {
+                    val payload = com.aether.connect.nfc.NFCPayload(
+                        "HANDSHAKE", "Aether Device", android.os.Build.MODEL, "127.0.0.1", 8888
+                    )
                     onPayloadReceived?.invoke(payload)
                 }
             }

@@ -43,15 +43,34 @@ class InputInjectionService : AccessibilityService() {
      */
     fun injectInput(event: InputEvent) {
         when (event.type) {
-            "TOUCH_DOWN", "TOUCH_MOVE", "TOUCH_UP", "CLICK" -> {
-                injectGesture(event.x, event.y, event.type == "CLICK")
+            "TOUCH_DOWN" -> {
+                lastX = event.x
+                lastY = event.y
+                injectGesture(event.x, event.y, false)
+            }
+            "TOUCH_MOVE" -> {
+                if (lastX != 0f && lastY != 0f) {
+                    val segments = com.aether.connect.util.GestureInterpolator.interpolatePath(
+                        lastX, lastY, event.x, event.y, 20 // 20ms window for smoothness
+                    )
+                    segments.forEach { seg ->
+                        injectGesture(seg.x, seg.y, false, 10)
+                    }
+                }
+                lastX = event.x
+                lastY = event.y
+            }
+            "TOUCH_UP" -> {
+                lastX = 0f
+                lastY = 0f
+            }
+            "CLICK" -> {
+                injectGesture(event.x, event.y, true)
             }
             "SCROLL" -> {
                 injectScroll(event.scrollX, event.scrollY)
             }
             "KEY" -> {
-                // Key injection requires android.permission.INJECT_EVENTS (system only)
-                // AccessibilityService can performGlobalAction for some keys
                 when (event.keyCode) {
                     4 -> performGlobalAction(GLOBAL_ACTION_BACK)
                     3 -> performGlobalAction(GLOBAL_ACTION_HOME)
@@ -61,23 +80,20 @@ class InputInjectionService : AccessibilityService() {
         }
     }
 
-    private fun injectGesture(x: Float, y: Float, isClick: Boolean) {
+    private var lastX: Float = 0f
+    private var lastY: Float = 0f
+
+    private fun injectGesture(x: Float, y: Float, isClick: Boolean, duration: Long = 50) {
         val path = Path()
         path.moveTo(x, y)
         
         val builder = GestureDescription.Builder()
-        val stroke = GestureDescription.StrokeDescription(path, 0, if (isClick) 50 else 10)
+        val stroke = GestureDescription.StrokeDescription(
+            path, 0, duration, !isClick // willContinue = true for moves
+        )
         builder.addStroke(stroke)
         
-        dispatchGesture(builder.build(), object : GestureResultCallback() {
-            override fun onCompleted(gestureDescription: GestureDescription?) {
-                super.onCompleted(gestureDescription)
-            }
-            override fun onCancelled(gestureDescription: GestureDescription?) {
-                super.onCancelled(gestureDescription)
-                Log.e(TAG, "Gesture cancelled")
-            }
-        }, null)
+        dispatchGesture(builder.build(), null, null)
     }
 
     private fun injectScroll(dx: Float, dy: Float) {
